@@ -8,3 +8,4 @@ scikit-image
 pillow
 tifffile
 matplotlib
+scikit-learn
