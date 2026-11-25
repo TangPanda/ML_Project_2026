@@ -1,4 +1,4 @@
-from PIL import Image
+# from PIL import Image
 import numpy as np
 import tifffile as tiff
 from readlif.reader import LifFile
@@ -8,7 +8,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.ndimage import gaussian_filter
 from Classes.clustering import clustering
-
+from skimage.filters import threshold_otsu, try_all_threshold, threshold_local #for now - use otsu to threshold to generate masks for ground truth
 
 
 new_file = LifFile("C:\\Users\\dance\\OneDrive\\Documents\\Python\\ML_Project_2026\\Images\\20260923-cldn-lyn2-GFP-col28a2a-lyn2-mKate-31-33-hpf.lif")
@@ -24,53 +24,53 @@ lif1zs = lif1.zframes()
 channel_results = {}
 
 for channel in ["channel_0", "channel_1", "merged_channels"]:
-
     # Create a DataFrame for this channel
     df = pd.DataFrame({
         "slice number": [
-            f"image {i}" for i in range(len(lif1zs))
+            f"slice {i}" for i in range(len(lif1zs))
         ]
     })
-
     # Find the maximum intensity across the entire Z-stack
-    max_intensity = max(
-        np.max(np.asarray(matrix))
-        for matrix in lif1zs[channel]
-    )
-
-    if max_intensity == 0:
+    max_int = lif1.max_intensity(channel)
+    if max_int == 0:
         raise ValueError(f"Maximum intensity for {channel} is zero.")
 
-    scaled_vals = []
-    histograms = []
+    # Try Class Method
+    scaled_vals_class = lif1.scaled_intensity(channel, max_int)
 
-    for i in range(len(lif1zs)):
-        slice_obj = singleSlice(lif1zs.loc[i, :])
+    # scaled_vals = []
+    # histograms = []
+    # for i in range(len(lif1zs)):
+    #     slice_obj = singleSlice(lif1zs.loc[i, :])
+    #
+    #     # Scale intensities using the stack-wide maximum
+    #     scaled_slice = slice_obj.scale_vals(
+    #         index=channel,
+    #         scaleBy=max_int
+    #     )
+    #
+    #     # Calculate histogram of scaled intensities
+    #     hist = slice_obj.histogram(bins=256)
+    #
+    #     scaled_vals.append(scaled_slice)
+    #     histograms.append(hist)
+    # # Store results
+    # df["scaled matrix"] = scaled_vals
+    # df["histogram"] = histograms
 
-        # Scale intensities using the stack-wide maximum
-        scaled_slice = slice_obj.scale_vals(
-            index=channel,
-            scaleBy=max_intensity
-        )
-
-        # Calculate histogram of scaled intensities
-        hist = slice_obj.histogram(bins=256)
-
-        scaled_vals.append(scaled_slice)
-        histograms.append(hist)
-
-    # Store results
-    df["scaled matrix"] = scaled_vals
-    df["histogram"] = histograms
+    df["scaled matrix"] = scaled_vals_class
     channel_results[channel] = df
+
+
+
 # Select slice 50 and channel 0
-slice50 = singleSlice(lif1zs.loc[50])
+slice50_channel0 = singleSlice(channel_results['channel_0'].loc[50, "scaled matrix"])
 
 # Use the already-scaled image from channel_results
-slice50.scaled_data = channel_results["channel_0"].loc[50, "scaled matrix"]
+# slice50_channel0.scaled_data = channel_results["channel_0"].loc[50, "scaled matrix"]
 
 # Apply all four image-processing methods
-results = slice50.apply_image_methods_localN()
+results = slice50_channel0.apply_image_methods_localN()
 
 # Access individual results
 smoothed = results["gaussian"]
@@ -79,15 +79,16 @@ edges = results["sobel_edges"]
 gabor_response = results["gabor"]
 
 images = [
-    (slice50.scaled_data, "Original scaled image"),
+    (slice50_channel0.scaled_data, "Original scaled image"),
     (smoothed, "Gaussian smoothing"),
-    (background_subtracted, "Background subtraction"),
+    # (background_subtracted, "Background subtraction"), #don't use this, as it will be used to generate the ground truth of the membranes in the image
     (edges, "Sobel edges"),
     (gabor_response, "Gabor response")
 ]
 
+threshold = threshold_otsu(background_subtracted)
 
-texture_results_50 = slice50.apply_image_methods_texture(
+texture_results_50 = slice50_channel0.apply_image_methods_texture(
     window_size=9,
     entropy_bins=32
 )
@@ -104,7 +105,7 @@ images = [
     (local_entropy_50, "Local Entropy")
 ]
 
-image_results = slice50.image_method_results
+image_results = slice50_channel0.image_method_results
 
 texture_images = [
     (local_variance_50, "Local Variance"),
@@ -113,7 +114,7 @@ texture_images = [
 ]
 
 
-pixel_coordinates = slice50.normalize_coordinates()
+pixel_coordinates = slice50_channel0.normalize_coordinates()
 plt.figure(figsize=(7, 6))
 plt.scatter(
     pixel_coordinates["x_norm"],
@@ -158,7 +159,7 @@ X = pd.DataFrame({
     "y_norm": pixel_coordinates["y_norm"].to_numpy(),
     "intensity": pixel_coordinates["intensity"].to_numpy(),
     "gaussian": np.asarray(smoothed).ravel(),
-    "background_subtraction": np.asarray(background_subtracted).ravel(),
+    # "background_subtraction": np.asarray(background_subtracted).ravel(),
     "sobel": np.asarray(edges).ravel(),
     "gabor": np.asarray(gabor_response).ravel(),
     "variance": np.asarray(local_variance_50).ravel(),
@@ -183,14 +184,14 @@ print("Pixel labels shape:", pixel_labels.shape)
 print("Number of pixels in each cluster:", np.bincount(pixel_labels))
 
 # Reshape the pixel labels into the original image dimensions
-height, width = slice50.scaled_data.shape
+height, width = slice50_channel0.scaled_data.shape
 cluster_image = pixel_labels.reshape(height, width)
 
 
 fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 
 # Original image
-axes[0].imshow(slice50.scaled_data, cmap="gray")
+axes[0].imshow(slice50_channel0.scaled_data, cmap="gray")
 axes[0].set_title("Original Image — Channel 0, Slice 50")
 axes[0].axis("off")
 

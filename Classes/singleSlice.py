@@ -14,7 +14,10 @@ from Classes.ImageMethod import (
 class singleSlice:
     def __init__(self, data):
         self.image_data = data
-        self.scaled_data = None
+        if (np.array(self.image_data)<=1).all():
+            self.scaled_data = data
+        else:
+            self.scaled_data = None
         self.histogram_data = None
         self.image_method_results = None
         self.texture_results = None
@@ -33,24 +36,24 @@ class singleSlice:
         self.scaled_data = scaled_matrix
         return self.scaled_data
 
-    def histogram(self, bins=256):
-        if self.scaled_data is None:
-            raise ValueError("Call scale_vals() before histogram().")
-
-        # Flatten the 2D matrix into a 1D array of pixel values
-        pixel_values = self.scaled_data.flatten()
-
-        # Calculate histogram counts and bin edges
-        counts, bin_edges = np.histogram(
-            pixel_values, bins=bins, range=(0, 1)
-        )
-
-        self.histogram_data = {
-            "counts": counts,
-            "bin_edges": bin_edges
-        }
-
-        return self.histogram_data
+    # def histogram(self, bins=256):
+    #     if self.scaled_data is None:
+    #         raise ValueError("Call scale_vals() before histogram().")
+    #
+    #     # Flatten the 2D matrix into a 1D array of pixel values
+    #     pixel_values = self.scaled_data.flatten()
+    #
+    #     # Calculate histogram counts and bin edges
+    #     counts, bin_edges = np.histogram(
+    #         pixel_values, bins=bins, range=(0, 1)
+    #     )
+    #
+    #     self.histogram_data = {
+    #         "counts": counts,
+    #         "bin_edges": bin_edges
+    #     }
+    #
+    #     return self.histogram_data
 
     def apply_image_methods_localN(
             self,

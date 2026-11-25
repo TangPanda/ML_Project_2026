@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import math as m
-
+import Classes.singleSlice as singleSlice
 
 class LifImage:
     def __init__(self, image):
@@ -12,9 +12,9 @@ class LifImage:
         data = []
         for z in range(self.image.dims.z):
             channel0_data = np.array(self.image.get_frame(z=z,t=0,c=0))
-            if z == 50:
-                print(channel0_data)
-                print(self.image.get_frame(z=z,t=0,c=0))
+            # if z == 50: #this is to visualize zstack 50
+            #     print(channel0_data)
+            #     print(self.image.get_frame(z=z,t=0,c=0))
 
             channel1_data = np.array(self.image.get_frame(z=z,t=0,c=1))
             merged_data = np.sqrt(channel0_data**2 + channel1_data**2)
@@ -27,29 +27,47 @@ class LifImage:
         self.data = pd.DataFrame(data)
         return self.data
 
-    # def to_grayscale(self):
-    #     if self.scaled_vals is None:
-    #         raise ValueError("call zframes first.")
-    #
-    #     gray_ch0 = []
-    #     gray_ch1 = []
-    #     gray_merged = []
-    #
-    #     for z in range(len(self.scaled_vals)):
-    #         channel0_gray = self.scaled_vals.loc[z, "channel_0"].astype(float)
-    #         gray_ch0.append(channel0_gray)
-    #
-    #         channel1_gray = self.scaled_vals.loc[z, "channel_1"].astype(float)
-    #         gray_ch1.append(channel1_gray)
-    #
-    #         merged_gray = (channel0_gray + channel1_gray)/2
-    #         gray_merged.append(merged_gray)
-    #
-    #     self.scaled_vals["gray_ch0"] = gray_ch0
-    #     self.scaled_vals["gray_ch1"] = gray_ch1
-    #     self.scaled_vals["gray_merged"] = gray_merged
-    #
-    #     return self.scaled_vals
+    def channel0(self):
+        if self.data is None:
+            raise ValueError("Call zframes() before channel0().")
+        return self.data.channel0
+    def channel1(self):
+        if self.data is None:
+            raise ValueError("Call zframes() before channel1().")
+        return self.data.channel1
+    def merged_channels(self):
+        if self.data is None:
+            raise ValueError("Call zframes() before merged_channels().")
+        return self.data.merged_channels
+
+    def max_intensity(self, channel):
+        if self.data is None:
+            raise ValueError("Call zframes() before max_intensity().")
+        maximum = max(
+            np.max(np.asarray(matrix))
+            for matrix in self.data[channel]
+        )
+        return maximum
+
+    def scaled_intensity(self, channel, scale_by):
+        if self.data is None:
+            raise ValueError('Call zframes() before scaled_intensity().')
+
+        scaled_vals = np.array(self.data[channel])/scale_by
+        # scaled_vals = []
+        # for i in range(len(self.data[channel])):
+        #     slice_obj = singleSlice(self.data[channel].loc[i])
+        #
+        #     # Scale intensities using the stack-wide maximum
+        #     scaled_slice = slice_obj.scale_vals(
+        #         index=channel,
+        #         scaleBy=scale_by
+        #     )
+        #
+        #     scaled_vals.append(scaled_slice)
+
+        # scaled_df = pd.DataFrame(scaled_vals)
+        return scaled_vals
 
 
 
